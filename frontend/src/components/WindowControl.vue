@@ -2,41 +2,41 @@
   <div class="panel">
     <h4>🎚️ 窗宽窗位调节</h4>
     <div class="preset-row">
-      <el-button v-for="(p, k) in presets" :key="k" size="small" @click="apply(k)" :type="active===k?'primary':''">{{ k }}</el-button>
+      <el-button v-for="(p, k) in presets" :key="k" size="small" @click="store.applyPreset(k)" :type="store.activePreset===k?'primary':''">{{ p.desc ? p.desc.split(' ')[0] : k }}</el-button>
     </div>
     <div class="slider-row">
       <span>窗宽: {{ store.windowVal }}</span>
-      <input type="range" :min="10" :max="3000" v-model.number="store.windowVal" @input="onChange"/>
+      <input type="range" :min="10" :max="3000" :value="store.windowVal" @input="onWidth"/>
     </div>
     <div class="slider-row">
       <span>窗位: {{ store.levelVal }}</span>
-      <input type="range" :min="-1000" :max="1000" v-model.number="store.levelVal" @input="onChange"/>
+      <input type="range" :min="-1000" :max="1000" :value="store.levelVal" @input="onLevel"/>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useImagingStore } from '../store/imaging'
+import type { WindowPreset } from '../types'
 const store = useImagingStore()
-const active = ref('')
 
-const defaultPresets: Record<string, any> = {
-  lung: { window: 1500, level: -600 },
-  mediastinum: { window: 350, level: 50 },
-  bone: { window: 2000, level: 300 },
-  brain: { window: 80, level: 40 },
-  abdomen: { window: 400, level: 40 },
+const defaultPresets: Record<string, WindowPreset> = {
+  lung: { window: 1500, level: -600, desc: '肺窗 (W1500/L-600)' },
+  mediastinum: { window: 350, level: 50, desc: '纵隔窗 (W350/L50)' },
+  bone: { window: 2000, level: 300, desc: '骨窗 (W2000/L300)' },
+  brain: { window: 80, level: 40, desc: '脑窗 (W80/L40)' },
+  abdomen: { window: 400, level: 40, desc: '腹窗 (W400/L40)' },
 }
 
 const presets = computed(() => store.volumeData?.windowPresets || defaultPresets)
 
-function apply(k: string) {
-  active.value = k
-  const p = presets.value[k]
-  if (p) { store.windowVal = p.window; store.levelVal = p.level }
+function onWidth(e: Event) {
+  store.setManualWindow(Number((e.target as HTMLInputElement).value), store.levelVal)
 }
-function onChange() { active.value = '' }
+function onLevel(e: Event) {
+  store.setManualWindow(store.windowVal, Number((e.target as HTMLInputElement).value))
+}
 </script>
 
 <style scoped>

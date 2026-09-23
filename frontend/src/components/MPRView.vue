@@ -6,6 +6,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
 import { useImagingStore } from '../store/imaging'
+import { applyWindowLevel } from '../utils/windowing'
 const props = defineProps<{ plane: string }>()
 const store = useImagingStore()
 const cvs = ref<HTMLCanvasElement>()
@@ -30,17 +31,16 @@ function draw() {
 
   if (!sliceData || !sliceData.length) return
 
-  const wl = store.windowVal, ww = store.levelVal
-  const lower = wl - ww / 2, upper = wl + ww / 2
+  const ww = store.windowVal, wl = store.levelVal
 
   const rows = sliceData.length, cols = sliceData[0].length
   const cellW = W / cols, cellH = H / rows
 
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      let val = sliceData[y][x]
-      let t = (val - lower) / (upper - lower)
-      t = Math.max(0, Math.min(1, t))
+      const val = sliceData[y][x]
+      // 与体渲染共用同一份窗宽窗位归一化，保证明暗一致
+      const t = applyWindowLevel(val, ww, wl)
       const gray = Math.floor(t * 255)
       ctx.fillStyle = `rgb(${gray},${gray},${gray})`
       ctx.fillRect(x * cellW, y * cellH, cellW + 0.5, cellH + 0.5)

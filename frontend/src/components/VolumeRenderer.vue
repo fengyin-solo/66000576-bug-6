@@ -7,6 +7,7 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useImagingStore } from '../store/imaging'
+import { applyWindowLevel } from '../utils/windowing'
 const store = useImagingStore()
 const container = ref<HTMLDivElement>()
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls, animId: number
@@ -31,8 +32,7 @@ function renderVolume() {
   const [d, h, w] = vd.dimensions
   const step = 2
 
-  const wl = store.windowVal, ww = store.levelVal
-  const lower = wl - ww/2, upper = wl + ww/2
+  const ww = store.windowVal, wl = store.levelVal
 
   // Sample volume as point cloud with transfer function
   const positions: number[] = [], colors: number[] = []
@@ -41,15 +41,14 @@ function renderVolume() {
   for (let z = 0; z < d; z += step) {
     for (let y = 0; y < h; y += step) {
       for (let x = 0; x < w; x += step) {
-        let val = vol[z][y][x]
-        let t = (val - lower) / (upper - lower)
-        t = Math.max(0, Math.min(1, t))
+        const val = vol[z][y][x]
+        // 与 MPR 切面共用同一份窗宽窗位归一化和灰度映射
+        const t = applyWindowLevel(val, ww, wl)
 
-        if (t > 0.05) {
+        if (t > 0.0) {
           positions.push((x - w/2) * scaleX, (y - h/2) * scaleY, (z - d/2) * scaleZ)
-          // Bone (white), tissue (gray), air (transparent)
-          const alpha = t * 0.6
-          colors.push(0.8 + t*0.2, 0.7 + t*0.2, 0.6 + t*0.3)
+          // 与切面一致的灰度：低值黑、高值白
+          colors.push(t, t, t)
         }
       }
     }
@@ -58,7 +57,7 @@ function renderVolume() {
   const geom = new THREE.BufferGeometry()
   geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-  const mat = new THREE.PointsMaterial({ size: 0.04, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: true, transparent: true, opacity: 0.8 })
+  const mat = new THREE.PointsMaterial({ size: 0.05, vertexColors: true, blending: THREE.NormalBlending, depthWrite: true, transparent: true, opacity: 0.9 })
   volGroup.add(new THREE.Points(geom, mat))
 
   // Axes cross

@@ -29,12 +29,18 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import VolumeRenderer from './components/VolumeRenderer.vue'
 import MPRView from './components/MPRView.vue'
 import WindowControl from './components/WindowControl.vue'
 import ROIPanel from './components/ROIPanel.vue'
 import { useImagingStore } from './store/imaging'
 const store = useImagingStore()
+
+onMounted(() => {
+  // 重开页面时恢复上次部位及其窗方案，并自动载入影像
+  if (store.restoreSession()) store.loadVolume()
+})
 </script>
 
 <style>
