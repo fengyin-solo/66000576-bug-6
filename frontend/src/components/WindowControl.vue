@@ -2,7 +2,13 @@
   <div class="panel">
     <h4>🎚️ 窗宽窗位调节</h4>
     <div class="preset-row">
-      <el-button v-for="(p, k) in presets" :key="k" size="small" @click="apply(k)" :type="active===k?'primary':''">{{ k }}</el-button>
+      <el-button
+        v-for="(p, k) in presets"
+        :key="k"
+        size="small"
+        @click="store.applyWindowPreset(k)"
+        :type="store.activeWindowPreset === k ? 'primary' : ''"
+      >{{ k }}</el-button>
     </div>
     <div class="slider-row">
       <span>窗宽: {{ store.windowVal }}</span>
@@ -16,27 +22,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useImagingStore } from '../store/imaging'
+import { DEFAULT_WINDOW_PRESETS } from '../utils/window'
+
 const store = useImagingStore()
-const active = ref('')
 
-const defaultPresets: Record<string, any> = {
-  lung: { window: 1500, level: -600 },
-  mediastinum: { window: 350, level: 50 },
-  bone: { window: 2000, level: 300 },
-  brain: { window: 80, level: 40 },
-  abdomen: { window: 400, level: 40 },
+const presets = computed(() => store.volumeData?.windowPresets || DEFAULT_WINDOW_PRESETS)
+
+function onChange() {
+  store.setManualWindow(store.windowVal, store.levelVal)
 }
-
-const presets = computed(() => store.volumeData?.windowPresets || defaultPresets)
-
-function apply(k: string) {
-  active.value = k
-  const p = presets.value[k]
-  if (p) { store.windowVal = p.window; store.levelVal = p.level }
-}
-function onChange() { active.value = '' }
 </script>
 
 <style scoped>

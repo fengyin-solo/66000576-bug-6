@@ -3,7 +3,7 @@
     <header class="top-bar">
       <h1>🩻 三维医学影像体渲染与ROI标注平台</h1>
       <div class="tools">
-        <el-select v-model="store.preset" size="small" style="width:120px">
+        <el-select v-model="store.preset" size="small" style="width:120px" @change="store.selectPart(store.preset); store.loadVolume()">
           <el-option value="brain" label="头部CT"/><el-option value="chest" label="胸部CT"/><el-option value="abdomen" label="腹部CT"/>
         </el-select>
         <el-button size="small" @click="store.loadVolume()" :loading="store.loading">载入影像</el-button>
@@ -29,12 +29,16 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import VolumeRenderer from './components/VolumeRenderer.vue'
 import MPRView from './components/MPRView.vue'
 import WindowControl from './components/WindowControl.vue'
 import ROIPanel from './components/ROIPanel.vue'
 import { useImagingStore } from './store/imaging'
 const store = useImagingStore()
+
+// 页面重新打开：按记忆的部位载入影像，并还原该部位的窗方案
+onMounted(() => { store.loadVolume() })
 </script>
 
 <style>

@@ -1,0 +1,96 @@
+/// <reference types="../../node_modules/.vue-global-types/vue_3.5_0_0_0.d.ts" />
+import { ref, watch, onMounted, onUnmounted } from 'vue';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { useImagingStore } from '../store/imaging';
+import { windowIntensity } from '../utils/window';
+const store = useImagingStore();
+const container = ref();
+let scene, camera, renderer, controls, animId;
+let volGroup = new THREE.Group();
+function initScene() {
+    const c = container.value;
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1117);
+    camera = new THREE.PerspectiveCamera(45, c.clientWidth / c.clientHeight, 0.1, 50);
+    camera.position.set(3, 2, 4);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(c.clientWidth, c.clientHeight);
+    c.appendChild(renderer.domElement);
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 0, 0);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    scene.add(volGroup);
+}
+function renderVolume() {
+    volGroup.clear();
+    const vd = store.volumeData;
+    if (!vd)
+        return;
+    const vol = vd.volume;
+    const [d, h, w] = vd.dimensions;
+    const step = 2;
+    const ww = store.windowVal, wl = store.levelVal;
+    // Sample volume as point cloud；灰度映射与 MPR 切面共用同一函数，
+    // 保证两块画面映出的同一份数据明暗一致
+    const positions = [], colors = [];
+    const scaleX = 3 / w, scaleY = 3 / h, scaleZ = 3 / d;
+    for (let z = 0; z < d; z += step) {
+        for (let y = 0; y < h; y += step) {
+            for (let x = 0; x < w; x += step) {
+                const val = vol[z][y][x];
+                const t = windowIntensity(val, ww, wl);
+                if (t > 0.05) {
+                    positions.push((x - w / 2) * scaleX, (y - h / 2) * scaleY, (z - d / 2) * scaleZ);
+                    // 与切面相同的灰度：黑→白
+                    const g = t;
+                    colors.push(g, g, g);
+                }
+            }
+        }
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    // 使用普通混合，避免加色混合在缩放/旋转时叠加密度变化导致明暗漂移
+    const mat = new THREE.PointsMaterial({
+        size: 0.06, vertexColors: true, blending: THREE.NormalBlending,
+        depthWrite: true, transparent: false,
+    });
+    volGroup.add(new THREE.Points(geom, mat));
+    // Axes cross
+    const axGeom = new THREE.BufferGeometry();
+    axGeom.setAttribute('position', new THREE.Float32BufferAttribute([-2, 0, 0, 2, 0, 0, 0, -2, 0, 0, 2, 0, 0, 0, -2, 0, 0, 2], 3));
+    volGroup.add(new THREE.Line(axGeom, new THREE.LineBasicMaterial({ color: 0x30363d })));
+}
+function animate() { animId = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+onMounted(() => { initScene(); animate(); });
+watch(() => [store.volumeData, store.windowVal, store.levelVal], renderVolume, { deep: true });
+onUnmounted(() => { cancelAnimationFrame(animId); renderer?.dispose(); });
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ref: "container",
+    ...{ class: "viewer3d" },
+});
+/** @type {typeof __VLS_ctx.container} */ ;
+/** @type {__VLS_StyleScopedClasses['viewer3d']} */ ;
+var __VLS_dollars;
+const __VLS_self = (await import('vue')).defineComponent({
+    setup() {
+        return {
+            container: container,
+        };
+    },
+});
+export default (await import('vue')).defineComponent({
+    setup() {
+        return {};
+    },
+});
+; /* PartiallyEnd: #4569/main.vue */
